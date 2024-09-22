@@ -5,9 +5,8 @@ set(CMAKE_CXX_STANDARD 23)
 
 add_executable(${PROJECT_NAME}
         main.cpp
-        client/main.cpp
-        server/main.cpp
-        main.cpp
+        Server/Server.cpp Server/Server.hpp
+        Client/Client.cpp Client/Client.hpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_BINARY_DIR})
@@ -27,5 +26,9 @@ add_library(ArgoDraft STATIC IMPORTED)
 #endif ()
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+if(WIN32)
+    target_link_libraries(${PROJECT_NAME} PUBLIC wsock32 ws2_32)
+endif()
 
 target_link_libraries(${PROJECT_NAME} PUBLIC ArgoDraft)

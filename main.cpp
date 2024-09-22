@@ -1,20 +1,24 @@
 #include <iostream>
-#include "ArgoDraft/ConsoleMenu.hpp"
-#include "ArgoDraft/ArgoLogger.hpp"
+#include <ArgoDraft/ConsoleMenu.hpp>
+#include <ArgoDraft/ArgoLogger.hpp>
+
+#include "Client/Client.hpp"
+#include "Server/Server.hpp"
 
 int main()
 {
+    std::cout << "Type `help` for a list of commands" << std::endl;
+
     try {
         ArgoDraft::MainMenu menu;
         menu.AddAction({"server", "Starts the server", []() {
-            std::cout << "Server started!" << std::endl;
+            Server server;
         }});
         menu.AddAction({"client", "Starts the client", []() {
-            std::cout << "Client started!" << std::endl;
+            Client client;
         }});
         menu.AddAction({"log", "Logs a message", []() {
             std::cout << "Adding a message to the log..." << std::endl;
-            ArgoDraft::Logger::LogMessage("Hello, World!", "NetToys.log");
             ArgoDraft::Logger::LogMessage("A log message would go here", "NetToys.log");
         }});
 
