@@ -90,7 +90,7 @@ auto Client::Send(const char *message) const -> bool {
 }
 
 auto Client::Receive() const -> void {
-    char buffer[this->bufferSize] = {0};
+    char buffer[this->bufferSize];
     if (recv(this->clientSocket, buffer, sizeof(buffer), 0) < 0) {
         std::cerr << "Client failed to receive message" << std::endl;
         this->logger.LogMessage("Client failed to receive message", ArgoDraft::LogLevel::CRITICAL);

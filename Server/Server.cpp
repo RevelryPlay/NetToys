@@ -121,7 +121,7 @@ auto Server::Accept() -> void {
 }
 
 auto Server::Receive() -> void {
-    char buffer[this->bufferSize] = {0};
+    char buffer[this->bufferSize];
     recv(this->clientSocket, buffer, sizeof(buffer), 0);
 
     // If buffer is empty or contains "//exit", close the client socket and return otherwise log the message
