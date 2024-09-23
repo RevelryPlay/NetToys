@@ -34,7 +34,7 @@ private:
     std::string host;
     int maxConnections = 5;
     int maxClients = 5;
-    int bufferSize = 1024;
+    int bufferSize = 512;
 
     int serverSocket = 0;
     int clientSocket = 0;
@@ -49,9 +49,10 @@ private:
     auto BindSocket() const -> void;
     auto Listen() const -> void;
     auto Accept() -> void;
-    auto Receive() const -> void;
+    auto Receive() -> void;
     auto Send() const -> void;
-    auto Close() const -> void;
+    auto Close() -> void;
+    auto CloseClient() -> void;
     auto Run() -> void;
 };
 

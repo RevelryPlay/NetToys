@@ -27,7 +27,7 @@ class Client {
 private:
     int port = 9876;
     std::string host;
-    int bufferSize = 1024;
+    int bufferSize = 512;
 
     int clientSocket = 0;
 
@@ -38,10 +38,10 @@ private:
     std::queue<std::string> messageQueue;
 
     auto CreateSocket() -> void;
-    auto Connect() const -> void;
+    auto Connect() -> void;
     auto Send(const char* message) const -> bool;
     auto Receive() const -> void;
-    auto Close() const -> void;
+    auto Close() -> void;
     auto Run() -> void;
 };
 

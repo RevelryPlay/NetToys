@@ -63,7 +63,7 @@ auto Client::CreateSocket() -> void {
     this->logger.LogMessage("Client socket created", ArgoDraft::LogLevel::INFO);
 }
 
-auto Client::Connect() const -> void {
+auto Client::Connect() -> void {
     sockaddr_in serverAddress{};
     serverAddress.sin_family = AF_INET;
     serverAddress.sin_port = htons(this->port);
@@ -100,8 +100,14 @@ auto Client::Receive() const -> void {
     this->logger.LogMessage(("Client received message: " + std::string(buffer)).c_str(), ArgoDraft::LogLevel::INFO);
 }
 
-auto Client::Close() const -> void {
-    close(this->clientSocket);
+auto Client::Close() -> void {
+    // if (close(this->clientSocket) < 0) {
+    //     std::cerr << "Failed to close client socket" << std::endl;
+    //     this->logger.LogMessage("Failed to close client socket", ArgoDraft::LogLevel::CRITICAL);
+    //     return;
+    // }
+
+    this->clientSocket = 0;
     this->logger.LogMessage("Client socket closed", ArgoDraft::LogLevel::INFO);
 }
 
@@ -123,33 +129,55 @@ auto Client::Run() -> void {
     this->messageQueue.emplace("A second message from the client.");
     this->messageQueue.emplace("And a third message from the client.");
 
+    // Add an absurdly long message to the queue
+    // this->messageQueue.emplace(
+    //     "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras viverra sollicitudin commodo. Integer facilisis"
+    //     " fermentum neque, sed congue tellus auctor sit amet. Sed felis massa, faucibus at mollis porttitor, fermentum "
+    //     "a nulla. Pellentesque eget fringilla diam. Morbi eget congue purus, vitae facilisis felis. Praesent vitae semper "
+    //     "sapien. Aenean egestas lacus mi. Integer faucibus mollis fringilla. Pellentesque felis urna, condimentum eget "
+    //     "blandit quis, posuere a quam. Morbi non lacus id metus porta tristique. Praesent vitae dui id elit placerat "
+    //     "pharetra eget et magna. Integer nec iaculis arcu. -- Duis et volutpat leo. Sed tempus lacus blandit arcu "
+    //     "interdum suscipit. Proin a urna vitae risus vulputate condimentum vitae in dolor. Suspendisse sed malesuada "
+    //     "dolor, sed tempor nisl. Quisque luctus neque velit, non dapibus turpis pulvinar eget. Lorem ipsum dolor sit "
+    //     "amet, consectetur adipiscing elit. Morbi eu lectus in purus dignissim molestie ac a massa. Phasellus tincidunt, "
+    //     "eros ut gravida vehicula, sem nisl elementum nibh, suscipit rhoncus libero fusce."
+    // );
+
+    this->messageQueue.emplace("And a final message from the client.");
+
+    this->messageQueue.emplace("//exit");
+
     this->CreateSocket();
 
     this->Connect();
 
     if (this->clientSocket > 0) {
-
         // while (true) {
 
-            // While loop to send messages
-            while (!this->messageQueue.empty()) {
-                if (this->Send(this->messageQueue.front().c_str())) {
-                    this->logger.LogMessage(("Client sent message: " + this->messageQueue.front()).c_str(),
-                                            ArgoDraft::LogLevel::INFO);
+        // While loop to send messages
+        while (!this->messageQueue.empty()) {
+            if (const auto message = this->messageQueue.front().c_str(); this->Send(message)) {
+                this->logger.LogMessage(("Client sent message: " + this->messageQueue.front()).c_str(),
+                                        ArgoDraft::LogLevel::INFO);
 
-                    this->messageQueue.pop();
+                this->messageQueue.pop();
+
+                if (std::string(message) == "//exit") {
+                    this->Close();
+                    break;
                 }
             }
+        }
 
-            this->Receive();
+        // this->Receive();
 
         // }
 
-        // this->Close();
+        this->Close();
     }
 
 #ifdef __WIN32__
-    // this->logger.LogMessage("Cleaning up Windows Sockets", ArgoDraft::LogLevel::DEBUG);
-    // WSACleanup();
+    this->logger.LogMessage("Cleaning up Windows Sockets", ArgoDraft::LogLevel::DEBUG);
+    WSACleanup();
 #endif
 }
