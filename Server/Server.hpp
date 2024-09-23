@@ -3,10 +3,12 @@
 
 #include <cstring>
 #include <iostream>
+#include <queue>
 #include <unistd.h>
 #include <string>
 #include <stdlib.h>
 #include <stdio.h>
+#include <ArgoDraft/ArgoLogger.hpp>
 
 #ifdef __WIN32__
     #include <winsock2.h>
@@ -36,6 +38,12 @@ private:
 
     int serverSocket = 0;
     int clientSocket = 0;
+
+    const std::string logFileName = "NetToys.log";
+    ArgoDraft::Logger logger = ArgoDraft::Logger(logFileName);
+
+    // A queue of messages to be sent
+    std::queue<std::string> messageQueue;
 
     auto CreateSocket() -> void;
     auto BindSocket() const -> void;
