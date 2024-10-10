@@ -30,7 +30,7 @@ private:
     std::string host;
     int bufferSize = 512;
 
-    int clientSocket = 0;
+    unsigned long long clientSocket = -1;
 
     std::string logFileName = "NetToys.log";
     ArgoDraft::Logger logger = ArgoDraft::Logger(logFileName);
@@ -40,7 +40,7 @@ private:
 
     auto CreateSocket() -> void;
     auto Connect() -> void;
-    auto Send(const char* message) const -> bool;
+    auto Send() -> void;
     auto Receive() const -> void;
     auto Close() -> void;
     auto Run() -> void;

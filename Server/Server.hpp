@@ -37,8 +37,8 @@ private:
     int maxClients = 5;
     int bufferSize = 512;
 
-    int serverSocket = 0;
-    int clientSocket = 0;
+    unsigned long long serverSocket = 0;
+    unsigned long long clientSocket = 0;
 
     const std::string logFileName = "NetToys.log";
     ArgoDraft::Logger logger = ArgoDraft::Logger(logFileName);
@@ -50,8 +50,8 @@ private:
     auto BindSocket() const -> void;
     auto Listen() const -> void;
     auto Accept() -> void;
-    auto Receive() -> void;
-    auto Send() const -> void;
+    auto Receive() const -> void;
+    auto Send() -> void;
     auto Close() -> void;
     auto CloseClient() -> void;
     auto Run() -> void;

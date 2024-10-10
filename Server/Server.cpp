@@ -63,6 +63,9 @@ Server::Server(const int port, const std::string &host, const int maxConnections
     this->maxClients = maxClients;
     this->bufferSize = bufferSize;
 
+    this->logger.SetFileLogLevel(ArgoDraft::LogLevel::INFO);
+    this->logger.SetConsoleLogLevel(ArgoDraft::LogLevel::INFO);
+
     this->logger.LogMessage(
         ("Server starting on port " + std::to_string(port) + " with host " + host + " with max connections " +
          std::to_string(maxConnections) + " and max clients " + std::to_string(maxClients) + " with buffer size " +
@@ -100,43 +103,93 @@ auto Server::BindSocket() const -> void {
 }
 
 auto Server::Listen() const -> void {
-    if (const int listResults = listen(this->serverSocket, this->maxConnections); listResults < 0) {
-        std::cerr << "Failed to listen on socket" << std::endl;
-        this->logger.LogMessage("Failed to listen on server socket", ArgoDraft::LogLevel::CRITICAL);
+    // Listen for incoming connections
+    if (const int listenResults = listen(this->serverSocket, this->maxConnections); listenResults < 0) {
+        std::cerr << "Failed to listen for connections" << std::endl;
+        this->logger.LogMessage("Failed to listen for connections", ArgoDraft::LogLevel::CRITICAL);
         exit(EXIT_FAILURE);
     }
 
-    this->logger.LogMessage("Server socket listening", ArgoDraft::LogLevel::INFO);
+    // Log the listening
+    this->logger.LogMessage("Server listening for connections", ArgoDraft::LogLevel::INFO);
 }
 
 auto Server::Accept() -> void {
-    this->clientSocket = accept(this->serverSocket, nullptr, nullptr);
+    // Create a sockaddr_in struct to hold the client address
+    sockaddr_in clientAddress{};
+    socklen_t clientAddressLength = sizeof(clientAddress);
+
+    // Accept the incoming connection
+    this->clientSocket = accept(this->serverSocket, reinterpret_cast<sockaddr *>(&clientAddress), &clientAddressLength);
     if (this->clientSocket < 0) {
         std::cerr << "Failed to accept connection" << std::endl;
         this->logger.LogMessage("Failed to accept connection", ArgoDraft::LogLevel::CRITICAL);
         exit(EXIT_FAILURE);
     }
 
-    this->logger.LogMessage("Server socket accepted connection", ArgoDraft::LogLevel::INFO);
+    // Log the connection
+    this->logger.LogMessage("Server accepted connection", ArgoDraft::LogLevel::INFO);
 }
 
-auto Server::Receive() -> void {
-    char buffer[this->bufferSize];
-    recv(this->clientSocket, buffer, sizeof(buffer), 0);
-
-    // If buffer is empty or contains "//exit", close the client socket and return otherwise log the message
-    if (std::string(buffer).empty() || std::string(buffer) == "//exit") {
-        this->CloseClient();
+auto Server::Receive() const -> void {
+    // If the client socket is invalid, return
+    if (this->clientSocket < 0) {
         return;
     }
 
-    this->logger.LogMessage(("Server Received: " + std::string(buffer)).c_str(), ArgoDraft::LogLevel::INFO);
+    // Loop to receive messages
+    while (this->clientSocket > 0) {
+        // Create a buffer to hold the incoming message
+        char buffer[this->bufferSize] = {};
+
+        // Receive the message
+        if (const int receiveResults = recv(this->clientSocket, buffer, this->bufferSize, 0); receiveResults < 0) {
+            std::cerr << "Failed to receive message" << std::endl;
+            this->logger.LogMessage("Failed to receive message", ArgoDraft::LogLevel::CRITICAL);
+            exit(EXIT_FAILURE);
+        }
+
+        // Log the message
+        this->logger.LogMessage(("Server received message: " + std::string(buffer)).c_str(), ArgoDraft::LogLevel::INFO);
+    }
 }
 
-auto Server::Send() const -> void {
-    constexpr char message[] = "Server Hello!";
-    send(this->clientSocket, message, sizeof(message), 0);
-    this->logger.LogMessage(("Server Sent: " + std::string(message)).c_str(), ArgoDraft::LogLevel::INFO);
+auto Server::Send() -> void {
+    // If the message queue is empty, return
+    if (this->messageQueue.empty() || this->clientSocket < 0) {
+        return;
+    }
+
+    while (!this->messageQueue.empty()) {
+        // Get the message from the front of the queue
+        const std::string message = this->messageQueue.front();
+
+        // Filter out internal commands
+        if (message != "//exit" && message != "//shutdown") {
+            // Send the message
+            if (const int sendResults = send(this->clientSocket, message.c_str(), message.length(), 0); sendResults < 0) {
+                std::cerr << "Failed to send message" << std::endl;
+                this->logger.LogMessage("Failed to send message", ArgoDraft::LogLevel::CRITICAL);
+                exit(EXIT_FAILURE);
+            }
+
+            // Log the message
+            this->logger.LogMessage(("Server sent message: " + message).c_str(), ArgoDraft::LogLevel::INFO);
+
+            // Remove the message from the queue
+            this->messageQueue.pop();
+        }
+
+        // If the message was "//exit", close the client socket
+        if (message == "//exit") {
+            this->CloseClient();
+        }
+
+        // If the message was "//shutdown", close the server socket
+        if (message == "//shutdown") {
+            this->Close();
+        }
+    }
 }
 
 auto Server::Close() -> void {
@@ -163,11 +216,11 @@ auto Server::CloseClient() -> void {
         return;
     }
 
-    // if (const int closeResults = close(this->clientSocket); closeResults < 0) {
-    //     std::cerr << "Server failed to close client socket" << std::endl;
-    //     this->logger.LogMessage("Server failed to close client socket", ArgoDraft::LogLevel::CRITICAL);
-    //     return;
-    // }
+    if (const int closeResults = close(this->clientSocket); closeResults < 0) {
+        std::cerr << "Server failed to close client socket" << std::endl;
+        this->logger.LogMessage("Server failed to close client socket", ArgoDraft::LogLevel::CRITICAL);
+        return;
+    }
 
     this->clientSocket = 0;
     this->logger.LogMessage("Server client socket closed", ArgoDraft::LogLevel::INFO);
@@ -187,20 +240,32 @@ auto Server::Run() -> void {
     }
     this->logger.LogMessage("Windows Sockets started", ArgoDraft::LogLevel::DEBUG);
 #endif
+
+    this->messageQueue.emplace("Server Hello!");
+    this->messageQueue.emplace("A second message from the server.");
+    this->messageQueue.emplace("A third message from the server.");
+
+    // Create the server socket
     this->CreateSocket();
     this->BindSocket();
 
+    // Listen for incoming connections
     this->Listen();
+
+    // Accept incoming connections
     this->Accept();
 
-    while (this->clientSocket > 0) {
+    // If the client socket is valid, receive and send messages
+    if (this->clientSocket > 0) {
+        // Ideally send and receive would be in separate threads or non-blocking calls
+        // For now, we'll just call them in sequence
+        // The client and server should have these in opposite order for now
         this->Receive();
-        // this->Send();
+        this->Send();
     }
 
-    // if (this->serverSocket > 0) {
-    this->Close();
-    // }
+    // If all clients have disconnected, close the server socket
+    // this->Close();
 
 #ifdef __WIN32__
     this->logger.LogMessage("Cleaning up Windows Sockets", ArgoDraft::LogLevel::DEBUG);
